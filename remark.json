@@ -1,0 +1,121 @@
+//加好友 
+{
+    "BaseResponse": {
+    "Ret": 0,
+    "ErrMsg": ""
+    }
+    ,
+    "AddMsgCount": 0,
+    "AddMsgList": [],
+    "ModContactCount": 0,
+    "ModContactList": [],
+    "DelContactCount": 0,
+    "DelContactList": [],
+    "ModChatRoomMemberCount": 0,
+    "ModChatRoomMemberList": [],
+    "Profile": {
+    "BitFlag": 190,
+    "UserName": {
+    "Buff": "@894fb5f5008b9713023157f59e5b0258"
+    }
+    ,
+    "NickName": {
+    "Buff": "明"
+    }
+    ,
+    "BindUin": 546669204,
+    "BindEmail": {
+    "Buff": "546669204@qq.com"
+    }
+    ,
+    "BindMobile": {
+    "Buff": "13587703678"
+    }
+    ,
+    "Status": 50529183,
+    "Sex": 1,
+    "PersonalCard": 0,
+    "Alias": "",
+    "HeadImgUpdateFlag": 0,
+    "HeadImgUrl": "",
+    "Signature": ""
+    }
+    ,
+    "ContinueFlag": 0,
+    "SyncKey": {
+    "Count": 8,
+    "List": [{
+    "Key": 1,
+    "Val": 710291287
+    }
+    ,{
+    "Key": 2,
+    "Val": 710291286
+    }
+    ,{
+    "Key": 3,
+    "Val": 710291122
+    }
+    ,{
+    "Key": 11,
+    "Val": 710291156
+    }
+    ,{
+    "Key": 201,
+    "Val": 1518159508
+    }
+    ,{
+    "Key": 203,
+    "Val": 1518150463
+    }
+    ,{
+    "Key": 1000,
+    "Val": 1518156511
+    }
+    ,{
+    "Key": 1001,
+    "Val": 1518152954
+    }
+    ]
+    }
+    ,
+    "SKey": "",
+    "SyncCheckKey": {
+    "Count": 8,
+    "List": [{
+    "Key": 1,
+    "Val": 710291287
+    }
+    ,{
+    "Key": 2,
+    "Val": 710291286
+    }
+    ,{
+    "Key": 3,
+    "Val": 710291122
+    }
+    ,{
+    "Key": 11,
+    "Val": 710291156
+    }
+    ,{
+    "Key": 201,
+    "Val": 1518159508
+    }
+    ,{
+    "Key": 203,
+    "Val": 1518150463
+    }
+    ,{
+    "Key": 1000,
+    "Val": 1518156511
+    }
+    ,{
+    "Key": 1001,
+    "Val": 1518152954
+    }
+    ]
+    }
+    
+    }
+    
