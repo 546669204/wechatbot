@@ -2,16 +2,25 @@ package wechatbot
 
 import (
 	"bytes"
+	"crypto/md5"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+
+	"io/ioutil"
 	"log"
 	"math/rand"
+	"mime/multipart"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
+
+	"gopkg.in/h2non/filetype.v1/types"
+
+	"gopkg.in/h2non/filetype.v1"
 
 	httpdo "github.com/546669204/golang-http-do"
 	"github.com/mdp/qrterminal"
@@ -26,6 +35,8 @@ var SyncKey gjson.Result
 var UserNameToNickName map[string]string
 var Contact ContactList
 
+var mediaIndex int = 1
+
 type LoginXML struct {
 	XMLName     xml.Name `xml:"error"` /* 根节点定义 */
 	Ret         string   `xml:"ret"`
@@ -36,15 +47,6 @@ type LoginXML struct {
 	PassTicket  string   `xml:"pass_ticket"`
 	IsGrayscale string   `xml:"isgrayscale"`
 }
-type WxSendMsg struct {
-	Type         int    `json:"Type"`
-	Content      string `json:"Content"`
-	FromUserName string `json:"FromUserName"`
-	ToUserName   string `json:"ToUserName"`
-	LocalID      string `json:"LocalID"`
-	ClientMsgId  string `json:"ClientMsgId"`
-}
-
 type ContactList struct {
 	MemberCount int    `json:"MemberCount"`
 	MemberList  []User `json:"MemberList"`
@@ -308,12 +310,12 @@ func WebWxSync() gjson.Result {
 		return gjson.Result{}
 	}
 	SyncKey = gjson.Get(string(httpbyte), "SyncKey")
-	log.Println(string(httpbyte))
+	//log.Println(string(httpbyte))
 
 	return gjson.ParseBytes(httpbyte)
 }
 
-func SendMsg(con WxSendMsg) {
+func SendMsg(con map[string]interface{}) {
 	op := httpdo.Default()
 	op.Method = "POST"
 	op.Url = fmt.Sprintf("https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsg?lang=zh_CN&pass_ticket=%s", PassTicket)
@@ -329,9 +331,75 @@ func SendMsg(con WxSendMsg) {
 		log.Println(err)
 		return
 	}
-	//log.Println(string(httpbyte))
 }
-
+func SendMsgImage(con map[string]interface{}) {
+	op := httpdo.Default()
+	op.Method = "POST"
+	op.Url = fmt.Sprintf("https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendmsgimg?fun=async&f=json&pass_ticket=%s", PassTicket)
+	jsoncon, err := JSONMarshal(con)
+	if err != nil {
+		return
+	}
+	op.Data =
+		fmt.Sprintf(`{"BaseRequest":{"Uin":%s,"Sid":"%s","Skey":"%s","DeviceID":"%s"},"Msg":%s,"Scene":0}`, Uin, Sid, SKey, DeviceID, jsoncon)
+	op.Header = "Content-Type:application/json;charset=UTF-8"
+	_, err = httpdo.HttpDo(op)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+}
+func SendMsgVideo(con map[string]interface{}) {
+	op := httpdo.Default()
+	op.Method = "POST"
+	op.Url = fmt.Sprintf("https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendvideomsg?fun=async&f=json&pass_ticket=%s", PassTicket)
+	jsoncon, err := JSONMarshal(con)
+	if err != nil {
+		return
+	}
+	op.Data =
+		fmt.Sprintf(`{"BaseRequest":{"Uin":%s,"Sid":"%s","Skey":"%s","DeviceID":"%s"},"Msg":%s,"Scene":0}`, Uin, Sid, SKey, DeviceID, jsoncon)
+	op.Header = "Content-Type:application/json;charset=UTF-8"
+	_, err = httpdo.HttpDo(op)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+}
+func SendMsgFile(con map[string]interface{}) {
+	op := httpdo.Default()
+	op.Method = "POST"
+	op.Url = fmt.Sprintf("https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendappmsg?fun=async&f=json&pass_ticket=%s", PassTicket)
+	jsoncon, err := JSONMarshal(con)
+	if err != nil {
+		return
+	}
+	op.Data =
+		fmt.Sprintf(`{"BaseRequest":{"Uin":%s,"Sid":"%s","Skey":"%s","DeviceID":"%s"},"Msg":%s,"Scene":0}`, Uin, Sid, SKey, DeviceID, jsoncon)
+	op.Header = "Content-Type:application/json;charset=UTF-8"
+	_, err = httpdo.HttpDo(op)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+}
+func SendMsgEmoticon(con map[string]interface{}) {
+	op := httpdo.Default()
+	op.Method = "POST"
+	op.Url = fmt.Sprintf("https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxsendemoticon?fun=sys&f=json&pass_ticket=%s", PassTicket)
+	jsoncon, err := JSONMarshal(con)
+	if err != nil {
+		return
+	}
+	op.Data =
+		fmt.Sprintf(`{"BaseRequest":{"Uin":%s,"Sid":"%s","Skey":"%s","DeviceID":"%s"},"Msg":%s,"Scene":0}`, Uin, Sid, SKey, DeviceID, jsoncon)
+	op.Header = "Content-Type:application/json;charset=UTF-8"
+	_, err = httpdo.HttpDo(op)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+}
 func InviteMember(memberUserName string, chatRoomUserName string) {
 	op := httpdo.Default()
 	op.Method = "POST"
@@ -344,4 +412,157 @@ func InviteMember(memberUserName string, chatRoomUserName string) {
 		log.Println(err)
 		return
 	}
+}
+func SendTextMsg(content, to string) error {
+	var msg = make(map[string]interface{})
+	msg["FromUserName"] = UserName
+	msg["ToUserName"] = to
+	msg["Content"] = content
+	msg["Type"] = 1
+	msg["LocalID"] = fmt.Sprintf("%d", time.Now().Unix())
+	msg["ClientMsgId"] = msg["LocalID"]
+	SendMsg(msg)
+	return nil
+}
+
+func SendFileMsg(filepath, to string) error {
+
+	info, err := os.Stat(filepath)
+	if err != nil {
+		return err
+	}
+
+	buf, err := ioutil.ReadFile(filepath)
+	if err != nil {
+		return err
+	}
+	kind, _ := filetype.Get(buf)
+
+	media, err := UploadMedia(buf, kind, info, to)
+
+	if err != nil {
+		return err
+	}
+
+	var msg = make(map[string]interface{})
+	msg["FromUserName"] = UserName
+	msg["ToUserName"] = to
+	msg["LocalID"] = fmt.Sprintf("%d", time.Now().Unix())
+	msg["ClientMsgId"] = msg["LocalID"]
+
+	if filetype.IsImage(buf) {
+		if strings.HasSuffix(kind.MIME.Value, `gif`) {
+			msg["Type"] = 47
+			msg["MediaId"] = media
+			msg["EmojiFlag"] = 2
+			SendMsgEmoticon(msg)
+		} else {
+			msg["Type"] = 3
+			msg["MediaId"] = media
+			SendMsgImage(msg)
+		}
+	} else {
+		info, _ := os.Stat(filepath)
+		if filetype.IsVideo(buf) {
+			msg["Type"] = 43
+			msg["MediaId"] = media
+			SendMsgVideo(msg)
+		} else {
+			msg["Type"] = 6
+			msg[`Content`] = fmt.Sprintf(`<appmsg appid='wxeb7ec651dd0aefa9' sdkver=''><title>%s</title><des></des><action></action><type>6</type><content></content><url></url><lowurl></lowurl><appattach><totallen>10</totallen><attachid>%s</attachid><fileext>%s</fileext></appattach><extinfo></extinfo></appmsg>`, info.Name(), media, kind.Extension)
+			SendMsgFile(msg)
+		}
+	}
+
+	return err
+}
+func UploadMedia(buf []byte, kind types.Type, info os.FileInfo, to string) (string, error) {
+
+	// Only the first 261 bytes are used to sniff the content type.
+	head := buf[:261]
+
+	var mediatype string
+	if filetype.IsImage(head) {
+		mediatype = `pic`
+	} else if filetype.IsVideo(head) {
+		mediatype = `video`
+	} else {
+		mediatype = `doc`
+	}
+
+	fields := map[string]string{
+		`id`:                `WU_FILE_` + fmt.Sprintf("%d", mediaIndex),
+		`name`:              info.Name(),
+		`type`:              kind.MIME.Value,
+		`lastModifiedDate`:  info.ModTime().UTC().String(),
+		`size`:              fmt.Sprintf("%d", info.Size()),
+		`mediatype`:         mediatype,
+		`pass_ticket`:       PassTicket,
+		`webwx_data_ticket`: CookieDataTicket(),
+	}
+
+	media, err := json.Marshal(&map[string]interface{}{
+		`BaseRequest`:   GetBaseRequestStr(),
+		`ClientMediaId`: fmt.Sprintf("%d", time.Now().Unix()),
+		`TotalLen`:      fmt.Sprintf("%d", info.Size()),
+		`StartPos`:      0,
+		`DataLen`:       fmt.Sprintf("%d", info.Size()),
+		`MediaType`:     4,
+		`UploadType`:    2,
+		`ToUserName`:    to,
+		`FromUserName`:  UserName,
+		`FileMd5`:       string(md5.New().Sum(buf)),
+	})
+
+	if err != nil {
+		return ``, err
+	}
+
+	body := &bytes.Buffer{}
+	writer := multipart.NewWriter(body)
+
+	fw, err := writer.CreateFormFile(`filename`, info.Name())
+	if err != nil {
+		return ``, err
+	}
+	fw.Write(buf)
+
+	for k, v := range fields {
+		writer.WriteField(k, v)
+	}
+
+	writer.WriteField(`uploadmediarequest`, string(media))
+	writer.Close()
+	op := httpdo.Default()
+	op.Method = "POST"
+	op.Url = `https://file.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json`
+	op.Data = body.Bytes()
+	op.Header = `Content-Type:` + writer.FormDataContentType()
+	httpbyte, err := httpdo.HttpDo(op)
+	if err != nil {
+		return ``, err
+	}
+	mediaIndex++
+	return gjson.Get(string(httpbyte), "MediaId").String(), nil
+}
+
+func CookieDataTicket() string {
+	urlPath, err := url.Parse("https://wx.qq.com/")
+	if err != nil {
+		return ``
+	}
+	ticket := ``
+	cookies := httpdo.Autocookie.Cookies(urlPath)
+	for _, cookie := range cookies {
+		if cookie.Name == `webwx_data_ticket` {
+			ticket = cookie.Value
+			break
+		}
+	}
+
+	return ticket
+}
+
+func GetBaseRequestStr() string {
+	return fmt.Sprintf(`{"Uin":%s,"Sid":"%s","Skey":"%s","DeviceID":"%s"}`, Uin, Sid, SKey, DeviceID)
 }

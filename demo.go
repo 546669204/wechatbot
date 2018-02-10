@@ -44,14 +44,11 @@ func main() {
 						if v.Get("ToUserName").String() == UserName {
 							log.Println()
 							time.Sleep(time.Second)
-							var msg WxSendMsg
-							msg.FromUserName = UserName
-							msg.ToUserName = v.Get("FromUserName").String()
-							msg.Content = fmt.Sprintf(`镜像反弹：%s`, v.Get("Content").String())
-							msg.Type = 1
-							msg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
-							msg.ClientMsgId = msg.LocalID
-							SendMsg(msg)
+							SendTextMsg(fmt.Sprintf(`镜像反弹：%s`, v.Get("Content").String()), v.Get("FromUserName").String())
+							SendFileMsg(`/file/1.jpg`, v.Get("FromUserName").String())
+							SendFileMsg(`/file/1.gif`, v.Get("FromUserName").String())
+							SendFileMsg(`/file/1.mp4`, v.Get("FromUserName").String())
+							SendFileMsg(`/file/1.doc`, v.Get("FromUserName").String())
 						}
 					}
 				}
@@ -61,14 +58,7 @@ func main() {
 				U := Profile.Get("UserName").String()
 				N := Profile.Get("NickName").String()
 				//添加好友欢迎语
-				var msg WxSendMsg
-				msg.FromUserName = UserName
-				msg.ToUserName = U
-				msg.Content = fmt.Sprintf(`你好%s欢迎来到扒拉扒拉`, N)
-				msg.Type = 1
-				msg.LocalID = fmt.Sprintf("%d", time.Now().Unix())
-				msg.ClientMsgId = msg.LocalID
-				SendMsg(msg)
+				SendTextMsg(fmt.Sprintf(`你好%s欢迎来到扒拉扒拉`, N), U)
 			}
 
 		}
