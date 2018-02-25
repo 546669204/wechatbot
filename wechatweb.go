@@ -1,6 +1,7 @@
 package wechatbot
 
 import (
+	"io"
 	"bytes"
 	"crypto/md5"
 	"encoding/json"
@@ -226,14 +227,14 @@ func GetAllContact() {
 		return
 	}
 
-	log.Printf("一共%s位联系人\n", gjson.Get(string(httpbyte), "MemberCount").Int())
+	log.Printf("一共%d位联系人\n", gjson.Get(string(httpbyte), "MemberCount").Int())
 	json.Unmarshal(httpbyte, &Contact)
 	MemberList := gjson.Get(string(httpbyte), "MemberList").Array()
 	UserNameToNickName = make(map[string]string)
 	for index := 0; index < len(MemberList); index++ {
 		v := MemberList[index]
 		UserNameToNickName[v.Get("UserName").String()] = v.Get("NickName").String()
-		log.Printf("%s=======%s", v.Get("NickName").String(), v.Get("UserName").String())
+		//log.Printf("%s=======%s", v.Get("NickName").String(), v.Get("UserName").String())
 	}
 
 }
@@ -565,4 +566,44 @@ func CookieDataTicket() string {
 
 func GetBaseRequestStr() string {
 	return fmt.Sprintf(`{"Uin":%s,"Sid":"%s","Skey":"%s","DeviceID":"%s"}`, Uin, Sid, SKey, DeviceID)
+}
+
+
+func SaveLogin(){
+	httpdo.Autocookie.Save()
+	file,_:=os.OpenFile("wx.data",os.O_CREATE|os.O_RDWR,0)
+	defer file.Close()
+	file.WriteString(fmt.Sprintf(`{"Uin":%s,"Sid":"%s","Skey":"%s","DeviceID":"%s","PassTicket":"%s","NickName":"%s","UserName":"%s","SyncKey":%s,"mediaIndex":"%d"}`, Uin, Sid, SKey, DeviceID,PassTicket,NickName,UserName,SyncKey.Raw,mediaIndex))
+	return 
+}
+func LoadLogin() bool {
+	file,err:=os.OpenFile("wx.data",os.O_RDWR,0)
+	if os.IsNotExist(err){
+		return false
+	}
+	var str string
+	var strbyte = make([]byte,1024)
+    for{
+		n,err := file.Read(strbyte)
+        if err != nil && err != io.EOF{
+			log.Println(err)
+		}
+        if 0 ==n {break}
+        str = str + string(strbyte)
+    }
+	data:=gjson.Parse(str)
+
+	Uin=data.Get("Uin").String()
+	Sid=data.Get("Sid").String()
+	SKey=data.Get("SKey").String()
+	DeviceID=data.Get("DeviceID").String()
+	PassTicket=data.Get("PassTicket").String()
+	NickName=data.Get("NickName").String()
+	UserName=data.Get("UserName").String()
+	SyncKey=data.Get("SyncKey")
+	mediaIndex = int(data.Get("mediaIndex").Int())
+	return true
+}
+func IsLogin() bool {
+	return NotifyStatus()
 }
