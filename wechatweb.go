@@ -605,5 +605,9 @@ func LoadLogin() bool {
 	return true
 }
 func IsLogin() bool {
-	return NotifyStatus()
+	retcode,_:=SyncCheck()
+	if retcode != 0 {
+		return false
+	}
+	return true
 }
