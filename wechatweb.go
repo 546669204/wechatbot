@@ -543,7 +543,9 @@ func UploadMedia(buf []byte, kind types.Type, info os.FileInfo, to string) (stri
 	postdata,_ := ioutil.ReadAll(body)
 	op := httpdo.Default()
 	op.Method = "POST"
-	op.Url = `https://file.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json`
+	for _,k := range []string{"","2"} {
+		op.Url = `https://file`+k+`.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json`
+	}
 	op.Data = postdata
 	op.Header = `Content-Type:` + writer.FormDataContentType()
 	httpbyte, err := httpdo.HttpDo(op)
