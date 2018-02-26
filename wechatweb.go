@@ -38,6 +38,13 @@ var Contact ContactList
 
 var mediaIndex int = 1
 
+type BaseRequest struct {
+	Uin int
+	Sid string
+	SKey string
+	DeviceID string
+}
+
 type LoginXML struct {
 	XMLName     xml.Name `xml:"error"` /* 根节点定义 */
 	Ret         string   `xml:"ret"`
@@ -444,7 +451,6 @@ func SendFileMsg(filepath, to string) error {
 	if err != nil {
 		return err
 	}
-
 	var msg = make(map[string]interface{})
 	msg["FromUserName"] = UserName
 	msg["ToUserName"] = to
@@ -534,16 +540,18 @@ func UploadMedia(buf []byte, kind types.Type, info os.FileInfo, to string) (stri
 
 	writer.WriteField(`uploadmediarequest`, string(media))
 	writer.Close()
+	postdata,_ := ioutil.ReadAll(body)
 	op := httpdo.Default()
 	op.Method = "POST"
 	op.Url = `https://file.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json`
-	op.Data = body.Bytes()
+	op.Data = postdata
 	op.Header = `Content-Type:` + writer.FormDataContentType()
 	httpbyte, err := httpdo.HttpDo(op)
 	if err != nil {
 		return ``, err
 	}
 	mediaIndex++
+	
 	return gjson.Get(string(httpbyte), "MediaId").String(), nil
 }
 
@@ -564,19 +572,26 @@ func CookieDataTicket() string {
 	return ticket
 }
 
-func GetBaseRequestStr() string {
-	return fmt.Sprintf(`{"Uin":%s,"Sid":"%s","Skey":"%s","DeviceID":"%s"}`, Uin, Sid, SKey, DeviceID)
+func GetBaseRequestStr() BaseRequest {
+	var s BaseRequest
+	ui,_ :=strconv.Atoi(Uin)
+	s.Uin = ui
+	s.Sid = Sid
+	s.SKey = SKey
+	s.DeviceID = DeviceID
+	return s
 }
 
 
 func SaveLogin(){
-	httpdo.Autocookie.Save()
+	httpdo.SaveCookies()
 	file,_:=os.OpenFile("wx.data",os.O_CREATE|os.O_RDWR,0)
 	defer file.Close()
 	file.WriteString(fmt.Sprintf(`{"Uin":%s,"Sid":"%s","Skey":"%s","DeviceID":"%s","PassTicket":"%s","NickName":"%s","UserName":"%s","SyncKey":%s,"mediaIndex":"%d"}`, Uin, Sid, SKey, DeviceID,PassTicket,NickName,UserName,SyncKey.Raw,mediaIndex))
 	return 
 }
 func LoadLogin() bool {
+	httpdo.LoadCookies()
 	file,err:=os.OpenFile("wx.data",os.O_RDWR,0)
 	if os.IsNotExist(err){
 		return false
