@@ -1,12 +1,12 @@
 package wechatbot
 
 import (
-	"io"
 	"bytes"
 	"crypto/md5"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"io"
 
 	"io/ioutil"
 	"log"
@@ -39,9 +39,9 @@ var Contact ContactList
 var mediaIndex int = 1
 
 type BaseRequest struct {
-	Uin int
-	Sid string
-	SKey string
+	Uin      int
+	Sid      string
+	SKey     string
 	DeviceID string
 }
 
@@ -69,6 +69,13 @@ type User struct {
 	Province   string `json:"Province"`
 	City       string `json:"City"`
 }
+type UserInfoModel struct {
+	Name      string
+	Pic       string
+	LastLogin string
+}
+
+var UserInfo UserInfoModel
 
 func init() {
 	httpdo.Autocookieflag = true
@@ -109,7 +116,7 @@ func GetUUID() (UUID string) {
 	return
 }
 
-func GetQrcode(UUID string) bool {
+func GetQrcode(UUID string, QrcodeStr *string) bool {
 	op := httpdo.Default()
 	op.Url = `https://login.weixin.qq.com/qrcode/` + UUID
 	httpbyte, err := httpdo.HttpDo(op)
@@ -118,8 +125,12 @@ func GetQrcode(UUID string) bool {
 		return false
 	}
 	M, err := qrcode.Decode(bytes.NewReader(httpbyte))
+	if QrcodeStr == nil {
+		qrterminal.GenerateHalfBlock(M.Content, qrterminal.L, os.Stdout)
+	} else {
+		*QrcodeStr = M.Content
+	}
 
-	qrterminal.GenerateHalfBlock(M.Content, qrterminal.L, os.Stdout)
 	return true
 }
 func GetRandomString(index int, length int) string {
@@ -193,10 +204,17 @@ func CheckLogin(UUID string) bool {
 		SyncKey = gjson.Get(string(httpbyte), "SyncKey")
 		UserName = user.Get("UserName").String()
 		NickName = user.Get("NickName").String()
+		UserInfo.Name = NickName
+		UserInfo.LastLogin = time.Now().Format("2006-01-02 15:04:05")
 		return true
 		break
 	case 201:
 		log.Println("请在手机上确认")
+		reg := regexp.MustCompile(`window.userAvatar = '(\S+)';`)
+		matches := reg.FindStringSubmatch(string(httpbyte))
+		if len(matches) == 2 {
+			UserInfo.Pic = matches[1]
+		}
 		return false
 		break
 	case 408:
@@ -241,19 +259,19 @@ func GetAllContact() {
 	for index := 0; index < len(MemberList); index++ {
 		v := MemberList[index]
 		UserNameToNickName[v.Get("UserName").String()] = v.Get("NickName").String()
-		//log.Printf("%s=======%s", v.Get("NickName").String(), v.Get("UserName").String())
+		log.Printf("%s=======%s", v.Get("NickName").String(), v.Get("UserName").String())
 	}
 
 }
 func SyncKeyToString(S gjson.Result) string {
 	//log.Println(S.String())
-	var rs string = ""
+	var rs []string
 	array := S.Get("List").Array()
 	for index := 0; index < len(array); index++ {
 		v := array[index]
-		rs += fmt.Sprintf("%d_%d|", v.Get("Key").Int(), v.Get("Val").Int())
+		rs = append(rs, fmt.Sprintf("%d_%d", v.Get("Key").Int(), v.Get("Val").Int()))
 	}
-	return rs[:len(rs)-1]
+	return strings.Join(rs, "|")
 }
 func SyncKeyToJson(S gjson.Result) string {
 	str := S.String()
@@ -540,11 +558,11 @@ func UploadMedia(buf []byte, kind types.Type, info os.FileInfo, to string) (stri
 
 	writer.WriteField(`uploadmediarequest`, string(media))
 	writer.Close()
-	postdata,_ := ioutil.ReadAll(body)
+	postdata, _ := ioutil.ReadAll(body)
 	op := httpdo.Default()
 	op.Method = "POST"
-	for _,k := range []string{"","2"} {
-		op.Url = `https://file`+k+`.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json`
+	for _, k := range []string{"", "2"} {
+		op.Url = `https://file` + k + `.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json`
 	}
 	op.Data = postdata
 	op.Header = `Content-Type:` + writer.FormDataContentType()
@@ -553,7 +571,7 @@ func UploadMedia(buf []byte, kind types.Type, info os.FileInfo, to string) (stri
 		return ``, err
 	}
 	mediaIndex++
-	
+
 	return gjson.Get(string(httpbyte), "MediaId").String(), nil
 }
 
@@ -576,7 +594,7 @@ func CookieDataTicket() string {
 
 func GetBaseRequestStr() BaseRequest {
 	var s BaseRequest
-	ui,_ :=strconv.Atoi(Uin)
+	ui, _ := strconv.Atoi(Uin)
 	s.Uin = ui
 	s.Sid = Sid
 	s.SKey = SKey
@@ -584,45 +602,52 @@ func GetBaseRequestStr() BaseRequest {
 	return s
 }
 
-
-func SaveLogin(){
+func SaveLogin() {
 	httpdo.SaveCookies()
-	file,_:=os.OpenFile("wx.data",os.O_CREATE|os.O_RDWR,0)
+	file, _ := os.OpenFile("wx.data", os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0)
 	defer file.Close()
-	file.WriteString(fmt.Sprintf(`{"Uin":%s,"Sid":"%s","Skey":"%s","DeviceID":"%s","PassTicket":"%s","NickName":"%s","UserName":"%s","SyncKey":%s,"mediaIndex":"%d"}`, Uin, Sid, SKey, DeviceID,PassTicket,NickName,UserName,SyncKey.Raw,mediaIndex))
-	return 
+	file.Write([]byte(fmt.Sprintf(`{"Uin":"%s","Sid":"%s","Skey":"%s","DeviceID":"%s","PassTicket":"%s","NickName":"%s","UserName":"%s","SyncKey":%s,"mediaIndex":"%d","pic":"%s"}`, Uin, Sid, SKey, DeviceID, PassTicket, NickName, UserName, strings.Replace(SyncKey.Raw, "\n", "", -1), mediaIndex, UserInfo.Pic)))
+	return
 }
 func LoadLogin() bool {
 	httpdo.LoadCookies()
-	file,err:=os.OpenFile("wx.data",os.O_RDWR,0)
-	if os.IsNotExist(err){
+	file, err := os.OpenFile("wx.data", os.O_RDWR, 0)
+	if os.IsNotExist(err) {
 		return false
 	}
 	var str string
-	var strbyte = make([]byte,1024)
-    for{
-		n,err := file.Read(strbyte)
-        if err != nil && err != io.EOF{
+	var strbyte = make([]byte, 1024)
+	for {
+		n, err := file.Read(strbyte)
+		if err != nil && err != io.EOF {
 			log.Println(err)
 		}
-        if 0 ==n {break}
-        str = str + string(strbyte)
-    }
-	data:=gjson.Parse(str)
+		if 0 == n {
+			break
+		}
+		str = str + string(strbyte[:n])
+	}
 
-	Uin=data.Get("Uin").String()
-	Sid=data.Get("Sid").String()
-	SKey=data.Get("SKey").String()
-	DeviceID=data.Get("DeviceID").String()
-	PassTicket=data.Get("PassTicket").String()
-	NickName=data.Get("NickName").String()
-	UserName=data.Get("UserName").String()
-	SyncKey=data.Get("SyncKey")
+	if !gjson.Valid(str) {
+		return false
+	}
+	data := gjson.Parse(str)
+	Uin = data.Get("Uin").String()
+	Sid = data.Get("Sid").String()
+	SKey = data.Get("SKey").String()
+	DeviceID = data.Get("DeviceID").String()
+	PassTicket = data.Get("PassTicket").String()
+	NickName = data.Get("NickName").String()
+	UserName = data.Get("UserName").String()
+	SyncKey = data.Get("SyncKey")
 	mediaIndex = int(data.Get("mediaIndex").Int())
+	UserInfo.Name = NickName
+	UserInfo.LastLogin = time.Now().Format("2006-01-02 15:04:05")
+	UserInfo.Pic = data.Get("pic").String()
 	return true
 }
 func IsLogin() bool {
-	retcode,_:=SyncCheck()
+	retcode, _ := SyncCheck()
 	if retcode != 0 {
 		return false
 	}

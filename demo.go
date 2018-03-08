@@ -9,7 +9,7 @@ import (
 func main() {
 
 	uuid := GetUUID()
-	if !GetQrcode(uuid) {
+	if !GetQrcode(uuid, nil) {
 		log.Println("验证码获取失败！")
 		return
 	}
