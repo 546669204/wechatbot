@@ -653,3 +653,16 @@ func IsLogin() bool {
 	}
 	return true
 }
+
+func SetRemark(remark, to string) (bool, error) {
+	op := httpdo.Default()
+	op.Url = "https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxoplog"
+	op.Method = "POST"
+	op.Data = fmt.Sprintf(`{"UserName":"%s","CmdId":2,"RemarkName":"%s","BaseRequest":{"Uin":"%s","Sid":"%s","Skey":"%s","DeviceID":"%s"}}`, to, remark, Uin, Sid, SKey, DeviceID)
+	httpbyte, err := httpdo.HttpDo(op)
+
+	if gjson.ParseBytes(httpbyte).Get("Ret").Int() == 0 {
+		return true, err
+	}
+	return false, err
+}
