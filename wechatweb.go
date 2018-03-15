@@ -76,6 +76,7 @@ type UserInfoModel struct {
 }
 
 var UserInfo UserInfoModel
+var SaveFileName string = "wx.data"
 
 func init() {
 	httpdo.Autocookieflag = true
@@ -243,13 +244,13 @@ func NotifyStatus() bool {
 	}
 	return true
 }
-func GetAllContact() {
+func GetAllContact() string {
 	op := httpdo.Default()
 	op.Url = fmt.Sprintf("https://wx.qq.com/cgi-bin/mmwebwx-bin/webwxgetcontact?lang=zh_CN&r=%d&pass_ticket=%s&seq=0&skey=%s", time.Now().Unix(), PassTicket, SKey)
 	httpbyte, err := httpdo.HttpDo(op)
 	if err != nil {
 		log.Println(err)
-		return
+		return ""
 	}
 
 	log.Printf("一共%d位联系人\n", gjson.Get(string(httpbyte), "MemberCount").Int())
@@ -261,7 +262,7 @@ func GetAllContact() {
 		UserNameToNickName[v.Get("UserName").String()] = v.Get("NickName").String()
 		log.Printf("%s=======%s", v.Get("NickName").String(), v.Get("UserName").String())
 	}
-
+	return string(httpbyte)
 }
 func SyncKeyToString(S gjson.Result) string {
 	//log.Println(S.String())
@@ -604,14 +605,14 @@ func GetBaseRequestStr() BaseRequest {
 
 func SaveLogin() {
 	httpdo.SaveCookies()
-	file, _ := os.OpenFile("wx.data", os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0)
+	file, _ := os.OpenFile(SaveFileName, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0)
 	defer file.Close()
 	file.Write([]byte(fmt.Sprintf(`{"Uin":"%s","Sid":"%s","Skey":"%s","DeviceID":"%s","PassTicket":"%s","NickName":"%s","UserName":"%s","SyncKey":%s,"mediaIndex":"%d","pic":"%s"}`, Uin, Sid, SKey, DeviceID, PassTicket, NickName, UserName, strings.Replace(SyncKey.Raw, "\n", "", -1), mediaIndex, UserInfo.Pic)))
 	return
 }
 func LoadLogin() bool {
 	httpdo.LoadCookies()
-	file, err := os.OpenFile("wx.data", os.O_RDWR, 0)
+	file, err := os.OpenFile(SaveFileName, os.O_RDWR, 0)
 	if os.IsNotExist(err) {
 		return false
 	}
