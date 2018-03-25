@@ -3,6 +3,7 @@ package wechatbot
 import (
 	"bytes"
 	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
@@ -526,7 +527,9 @@ func UploadMedia(buf []byte, kind types.Type, info os.FileInfo, to string) (stri
 		`pass_ticket`:       PassTicket,
 		`webwx_data_ticket`: CookieDataTicket(),
 	}
-
+	md5Ctx := md5.New()
+	md5Ctx.Write(buf)
+	cipherStr := md5Ctx.Sum(nil)
 	media, err := json.Marshal(&map[string]interface{}{
 		`BaseRequest`:   GetBaseRequestStr(),
 		`ClientMediaId`: fmt.Sprintf("%d", time.Now().Unix()),
@@ -537,7 +540,7 @@ func UploadMedia(buf []byte, kind types.Type, info os.FileInfo, to string) (stri
 		`UploadType`:    2,
 		`ToUserName`:    to,
 		`FromUserName`:  UserName,
-		`FileMd5`:       string(md5.New().Sum(buf)),
+		`FileMd5`:       hex.EncodeToString(cipherStr),
 	})
 
 	if err != nil {
@@ -562,9 +565,10 @@ func UploadMedia(buf []byte, kind types.Type, info os.FileInfo, to string) (stri
 	postdata, _ := ioutil.ReadAll(body)
 	op := httpdo.Default()
 	op.Method = "POST"
-	for _, k := range []string{"", "2"} {
+	/*for _, k := range []string{"", "2"} {
 		op.Url = `https://file` + k + `.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json`
-	}
+	}*/
+	op.Url = `https://file.wx.qq.com/cgi-bin/mmwebwx-bin/webwxuploadmedia?f=json`
 	op.Data = postdata
 	op.Header = `Content-Type:` + writer.FormDataContentType()
 	httpbyte, err := httpdo.HttpDo(op)
